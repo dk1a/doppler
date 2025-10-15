@@ -565,7 +565,7 @@ contract Doppler is BaseHook {
             } else {
                 uint256 proceedsLessFee = FullMath.mulDiv(uint128(-amount1), MAX_SWAP_FEE - swapFee, MAX_SWAP_FEE);
                 state.totalProceeds += proceedsLessFee;
-                _updateSenderGeneratedProceeds(sender, proceedsLessFee);
+                _updateSenderGeneratedProceeds(sender, uint128(-amount1));
             }
         } else {
             int128 amount1 = swapDelta.amount1();
@@ -582,7 +582,7 @@ contract Doppler is BaseHook {
             } else {
                 uint256 proceedsLessFee = FullMath.mulDiv(uint128(-amount0), MAX_SWAP_FEE - swapFee, MAX_SWAP_FEE);
                 state.totalProceeds += proceedsLessFee;
-                _updateSenderGeneratedProceeds(sender, proceedsLessFee);
+                _updateSenderGeneratedProceeds(sender, uint128(-amount0));
             }
         }
 
@@ -1444,8 +1444,8 @@ contract Doppler is BaseHook {
         // Skip check if maximum is not set
         if (maximumSenderGeneratedProceeds == 0) return;
 
-        senderGeneratedProceeds[sender] += amount;
-        if (senderGeneratedProceeds[sender] > maximumSenderGeneratedProceeds) {
+        senderGeneratedProceeds[initialSender] += amount;
+        if (senderGeneratedProceeds[initialSender] > maximumSenderGeneratedProceeds) {
             revert MaximumSenderGeneratedProceedsReached();
         }
     }
