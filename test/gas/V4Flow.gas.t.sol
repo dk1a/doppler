@@ -98,8 +98,9 @@ contract V4FlowGas is Deployers, DeployPermit2 {
 
         bytes memory tokenFactoryData =
             abi.encode("Test Token", "TEST", 0, 0, new address[](0), new uint256[](0), "TOKEN_URI");
-        bytes memory poolInitializerData =
-            abi.encode(1e15, 1 ether, startingTime, endingTime, 174_312, 186_840, 1, 800, false, 10, 200, 2);
+        bytes memory poolInitializerData = abi.encode(
+            1e15, 1 ether, startingTime, endingTime, 174_312, 186_840, 1, 800, false, 10, 200, 2, 0, integrator
+        );
 
         BeneficiaryData[] memory beneficiaries = new BeneficiaryData[](3);
         beneficiaries[0] = BeneficiaryData({ beneficiary: address(this), shares: 0.05e18 });

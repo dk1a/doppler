@@ -13,6 +13,7 @@ import {
     CannotSwapBeforeStartTime,
     InvalidSwapAfterMaturityInsufficientProceeds,
     InvalidSwapAfterMaturitySufficientProceeds,
+    MaximumSenderGeneratedProceedsReached,
     MAX_SWAP_FEE,
     Position,
     LOWER_SLUG_SALT,
@@ -228,5 +229,24 @@ contract SwapTest is BaseTest {
         (uint256 afterFeeGrowthGlobal0, uint256 afterFeeGrowthGlobal1) = manager.getFeeGrowthGlobals(poolId);
         assertEq(beforeFeeGrowthGlobal0, afterFeeGrowthGlobal0, "Token 0 fee growth should not change");
         assertEq(beforeFeeGrowthGlobal1, afterFeeGrowthGlobal1, "Token 1 fee growth should not change");
+    }
+
+    function test_swap_temp123() public {
+        vm.startPrank(hook.initializer());
+        hook.setMaximumSenderGeneratedProceeds(1 ether);
+        hook.setVerifiedRouter(address(swapRouter), true);
+        vm.stopPrank();
+
+        vm.warp(hook.startingTime());
+
+        buy(-1 ether);
+
+        buyExpectRevert(-1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
+
+        vm.startPrank(alice);
+        buyAs(alice, -1 ether);
+
+        buyAsExpectRevert(alice, -1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
+        vm.stopPrank();
     }
 }

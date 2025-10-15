@@ -82,7 +82,9 @@ contract V4Test is Test {
             false,
             8,
             DEFAULT_FEE,
-            DEFAULT_TICK_SPACING
+            DEFAULT_TICK_SPACING,
+            0,
+            address(0)
         );
 
         uint256 initialSupply = 1e23;

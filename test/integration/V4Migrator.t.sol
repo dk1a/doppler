@@ -106,7 +106,9 @@ contract V4MigratorTest is BaseTest, DeployPermit2 {
             false,
             10,
             200,
-            2
+            2,
+            0,
+            integrator
         );
 
         BeneficiaryData[] memory beneficiaries = new BeneficiaryData[](3);

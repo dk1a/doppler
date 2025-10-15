@@ -172,7 +172,9 @@ contract DopplerFixtures is Deployers {
             _isAssetToken0,
             config.numPDSlugs,
             _fee,
-            _tickSpacing
+            _tickSpacing,
+            0,
+            _integrator
         );
 
         (bytes32 salt, address hook, address token) = mineV4(

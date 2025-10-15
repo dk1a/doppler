@@ -12,6 +12,8 @@ import { ImmutableAirlock } from "src/base/ImmutableAirlock.sol";
 
 error InvalidTokenOrder();
 
+error SenderNotHookIntegrator();
+
 contract DopplerDeployer {
     // These variables are purposely not immutable to avoid hitting the contract size limit
     IPoolManager public poolManager;
@@ -35,8 +37,26 @@ contract DopplerDeployer {
             bool isToken0,
             uint256 numPDSlugs,
             uint24 lpFee,
+            ,
+            ,
         ) = abi.decode(
-            data, (uint256, uint256, uint256, uint256, int24, int24, uint256, int24, bool, uint256, uint24, int24)
+            data,
+            (
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                int24,
+                int24,
+                uint256,
+                int24,
+                bool,
+                uint256,
+                uint24,
+                int24,
+                uint256,
+                address
+            )
         );
 
         Doppler doppler = new Doppler{ salt: salt }(
@@ -75,6 +95,8 @@ contract UniswapV4Initializer is IPoolInitializer, ImmutableAirlock {
     /// @notice Address of the DopplerDeployer contract
     DopplerDeployer public immutable deployer;
 
+    mapping(address hook => address integrator) public hookIntegrators;
+
     /**
      * @param airlock_ Address of the Airlock contract
      * @param poolManager_ Address of the Uniswap V4 PoolManager
@@ -85,6 +107,13 @@ contract UniswapV4Initializer is IPoolInitializer, ImmutableAirlock {
         deployer = deployer_;
     }
 
+    modifier onlyHookIntegrator(
+        address hook
+    ) {
+        require(msg.sender == hookIntegrators[hook], SenderNotHookIntegrator());
+        _;
+    }
+
     /// @inheritdoc IPoolInitializer
     function initialize(
         address asset,
@@ -93,11 +122,46 @@ contract UniswapV4Initializer is IPoolInitializer, ImmutableAirlock {
         bytes32 salt,
         bytes calldata data
     ) external onlyAirlock returns (address) {
-        (,,,, int24 startingTick,,,, bool isToken0,,, int24 tickSpacing) = abi.decode(
-            data, (uint256, uint256, uint256, uint256, int24, int24, uint256, int24, bool, uint256, uint24, int24)
+        (
+            ,
+            ,
+            ,
+            ,
+            int24 startingTick,
+            ,
+            ,
+            ,
+            bool isToken0,
+            ,
+            ,
+            int24 tickSpacing,
+            uint256 maximumSenderGeneratedProceeds,
+            address integrator
+        ) = abi.decode(
+            data,
+            (
+                uint256,
+                uint256,
+                uint256,
+                uint256,
+                int24,
+                int24,
+                uint256,
+                int24,
+                bool,
+                uint256,
+                uint24,
+                int24,
+                uint256,
+                address
+            )
         );
 
         Doppler doppler = deployer.deploy(numTokensToSell, salt, data);
+
+        doppler.setMaximumSenderGeneratedProceeds(maximumSenderGeneratedProceeds);
+
+        hookIntegrators[address(doppler)] = integrator;
 
         if (isToken0 && asset > numeraire || !isToken0 && asset < numeraire) {
             revert InvalidTokenOrder();
@@ -138,5 +202,9 @@ contract UniswapV4Initializer is IPoolInitializer, ImmutableAirlock {
     {
         (sqrtPriceX96, token0, fees0, balance0, token1, fees1, balance1) =
             Doppler(payable(hook)).migrate(address(airlock));
+    }
+
+    function setVerifiedRouter(address hook, address router, bool isVerified) external onlyHookIntegrator(hook) {
+        Doppler(payable(hook)).setVerifiedRouter(router, isVerified);
     }
 }
