@@ -231,22 +231,22 @@ contract SwapTest is BaseTest {
         assertEq(beforeFeeGrowthGlobal1, afterFeeGrowthGlobal1, "Token 1 fee growth should not change");
     }
 
-    function test_swap_temp123() public {
+    function test_swap_MaximumProceedsPerSender() public {
         vm.startPrank(hook.initializer());
-        hook.setMaximumSenderGeneratedProceeds(1 ether);
+        hook.setMaximumSenderGeneratedProceeds(0.1 ether);
         hook.setVerifiedRouter(address(swapRouter), true);
         vm.stopPrank();
 
         vm.warp(hook.startingTime());
 
-        buy(-1 ether);
+        buy(-0.1 ether);
 
-        buyExpectRevert(-1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
+        buyExpectRevert(-0.1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
 
         vm.startPrank(alice);
-        buyAs(alice, -1 ether);
+        buyAs(alice, -0.1 ether);
 
-        buyAsExpectRevert(alice, -1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
+        buyAsExpectRevert(alice, -0.1 ether, MaximumSenderGeneratedProceedsReached.selector, false);
         vm.stopPrank();
     }
 }

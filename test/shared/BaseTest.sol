@@ -25,6 +25,7 @@ import { LPFeeLibrary } from "@v4-core/libraries/LPFeeLibrary.sol";
 import { CustomRouter } from "test/shared/CustomRouter.sol";
 import { MAX_SWAP_FEE } from "src/Doppler.sol";
 import { DopplerImplementation } from "./DopplerImplementation.sol";
+import { PoolSwapTestWithMsgSender } from "./PoolSwapTestWithMsgSender.sol";
 
 using PoolIdLibrary for PoolKey;
 using StateLibrary for IPoolManager;
@@ -259,7 +260,7 @@ contract BaseTest is Test, Deployers {
         _deploy();
 
         // Deploy swapRouter
-        swapRouter = new PoolSwapTest(manager);
+        swapRouter = PoolSwapTest(address(new PoolSwapTestWithMsgSender(manager)));
         vm.label(address(swapRouter), "SwapRouter");
 
         // Deploy modifyLiquidityRouter
@@ -366,6 +367,30 @@ contract BaseTest is Test, Deployers {
         return isToken0 ? (delta0, delta1) : (delta1, delta0);
     }
 
+    function buyAs(address buyer, int256 amount) public returns (uint256, uint256) {
+        // Negative means exactIn, positive means exactOut.
+        uint256 mintAmount = amount < 0 ? uint256(-amount) : computeBuyExactOut(uint256(amount));
+
+        if (usingEth) {
+            deal(buyer, uint256(mintAmount));
+        } else {
+            TestERC20(numeraire).mint(buyer, uint256(mintAmount));
+            TestERC20(numeraire).approve(address(swapRouter), uint256(mintAmount));
+        }
+
+        BalanceDelta delta = swapRouter.swap{ value: usingEth ? mintAmount : 0 }(
+            key,
+            IPoolManager.SwapParams(!isToken0, amount, isToken0 ? MAX_PRICE_LIMIT : MIN_PRICE_LIMIT),
+            PoolSwapTest.TestSettings(false, false),
+            ""
+        );
+
+        uint256 delta0 = uint256(int256(delta.amount0() < 0 ? -delta.amount0() : delta.amount0()));
+        uint256 delta1 = uint256(int256(delta.amount1() < 0 ? -delta.amount1() : delta.amount1()));
+
+        return isToken0 ? (delta0, delta1) : (delta1, delta0);
+    }
+
     /// @dev Sells a given amount of asset tokens.
     /// @param amount A negative value specificies the amount of asset tokens to sell, a positive value
     /// specifies the amount of numeraire tokens to receive.
@@ -426,6 +451,37 @@ contract BaseTest is Test, Deployers {
             deal(address(this), uint256(mintAmount));
         } else {
             TestERC20(numeraire).mint(address(this), uint256(mintAmount));
+            TestERC20(numeraire).approve(address(swapRouter), uint256(mintAmount));
+        }
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                CustomRevert.WrappedError.selector,
+                address(hook),
+                beforeSwap ? IHooks.beforeSwap.selector : IHooks.afterSwap.selector,
+                abi.encodeWithSelector(selector),
+                abi.encodeWithSelector(Hooks.HookCallFailed.selector)
+            )
+        );
+        swapRouter.swap{ value: usingEth ? mintAmount : 0 }(
+            key,
+            IPoolManager.SwapParams(!isToken0, amount, isToken0 ? MAX_PRICE_LIMIT : MIN_PRICE_LIMIT),
+            PoolSwapTest.TestSettings(true, false),
+            ""
+        );
+    }
+
+    function buyAsExpectRevert(address buyer, int256 amount, bytes4 selector, bool beforeSwap) public {
+        // Negative means exactIn, positive means exactOut.
+        if (amount > 0) {
+            revert UnexpectedPositiveAmount();
+        }
+        uint256 mintAmount = uint256(-amount);
+
+        if (usingEth) {
+            deal(buyer, uint256(mintAmount));
+        } else {
+            TestERC20(numeraire).mint(buyer, uint256(mintAmount));
             TestERC20(numeraire).approve(address(swapRouter), uint256(mintAmount));
         }
 
